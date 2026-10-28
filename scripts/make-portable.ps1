@@ -34,16 +34,32 @@ Remove-Item (Join-Path $dist 'build\_node') -Recurse -Force
 foreach ($d in 'src', 'public', 'scripts', 'docs') {
   Copy-Item (Join-Path $root $d) (Join-Path $pkg $d) -Recurse
 }
-foreach ($f in 'survey.json', 'package.json', 'README.md', '.env.example') {
+foreach ($f in 'package.json', 'README.md', '.env.example') {
   if (Test-Path (Join-Path $root $f)) { Copy-Item (Join-Path $root $f) $pkg }
 }
-# .env = bundled API key so members need zero config; delete it in the package
-# to force each member to fill their own key instead
-if (Test-Path (Join-Path $root '.env')) { Copy-Item (Join-Path $root '.env') $pkg }
+# .env 不进包：密钥只留在组长自己电脑里，组员首次使用在网页 ⚙ 设置里填自己的密钥
 
 # 3. data dir: personal data must NOT leak into the package; keep qes examples
 New-Item (Join-Path $pkg 'data\qes') -ItemType Directory -Force | Out-Null
 Copy-Item (Join-Path $root 'data\qes\example.qes') (Join-Path $pkg 'data\qes')
+
+# 3b. 默认问卷结构（档案制）：放进 data/profiles/default/，组员解压即可识别。
+# 便携版没有 settings.json → 服务器默认用档案 default；结构/元数据取当前生效档案。
+$activeId = 'default'
+try {
+  $sCfg = Get-Content (Join-Path $root 'data\settings.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+  if ($sCfg.active) { $activeId = $sCfg.active }
+} catch { }
+$activeDir = Join-Path $root "data\profiles\$activeId"
+$profDef = Join-Path $pkg 'data\profiles\default'
+New-Item $profDef -ItemType Directory -Force | Out-Null
+Copy-Item (Join-Path $activeDir 'survey.json') (Join-Path $profDef 'survey.json')
+if (Test-Path (Join-Path $activeDir 'survey-checklist.md')) { Copy-Item (Join-Path $activeDir 'survey-checklist.md') $profDef }
+try {
+  $meta = Get-Content (Join-Path $activeDir 'profile.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+  @{ name = $meta.name; pagesPerForm = $meta.pagesPerForm; idVariable = $meta.idVariable } |
+    ConvertTo-Json | Set-Content (Join-Path $profDef 'profile.json') -Encoding UTF8
+} catch { }   # 没有元数据就留空，服务器用默认值
 
 # 4. runtime deps
 Copy-Item (Join-Path $root 'node_modules') (Join-Path $pkg 'node_modules') -Recurse
