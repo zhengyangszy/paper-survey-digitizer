@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>纸质问卷数字化</title>
+<link rel="stylesheet" href="/vendor/survey-core/defaultV2.min.css">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="logo">📋</span>
+    <div>
+      <h1>纸质问卷数字化</h1>
+      <div id="configBadge"></div>
+    </div>
+  </div>
+  <span class="profile-box">
+    <label>当前问卷 <select id="profileSelect"></select></label>
+    <button id="profileNewBtn" class="ghost" title="新建一个问卷档案（不同问卷各自独立管理）">＋ 新问卷</button>
+    <button id="profileDelBtn" class="ghost" title="删除当前选中的问卷档案（含照片/记录/导出，不可恢复）">🗑</button>
+  </span>
+  <button id="settingsBtn" class="ghost">⚙ 设置</button>
+</header>
+
+<!-- ⚙ 设置（第 1 页内，默认收起） -->
+<section id="settingsSection" style="display:none">
+  <h2>⚙ 模型与上传设置</h2>
+  <div class="set-row">
+    <label>厂商/端点预设
+      <select id="presetSelect"></select>
+    </label>
+    <label>Base URL <input id="baseUrlInput" size="38" placeholder="https://.../v1"></label>
+  </div>
+  <div class="set-row">
+    <label>API Key <input id="apiKeyInput" size="44" placeholder="粘贴你的密钥"></label>
+    <label>识别模型名 <input id="modelInput" size="22" placeholder="必须是能看图的多模态模型"></label>
+  </div>
+  <div class="set-row">
+    <label>每份问卷页数（无编号命名时按此归组）
+      <input id="pagesPerFormInput" type="number" min="1" max="20" size="3">
+    </label>
+    <label>问卷编号变量（用于查重，可选）
+      <select id="idVariableSelect"><option value="">（不核对）</option></select>
+    </label>
+    <label>识别并发数 <input id="concurrencyInput" type="number" min="1" max="6" size="3"></label>
+    <span id="presetNote" class="hint"></span>
+  </div>
+  <div class="set-row">
+    <button id="saveSettingsBtn" class="primary">保存设置</button>
+    <span class="hint">保存在本机 data\settings.json，只影响自己；改完立即生效，不用重启。</span>
+  </div>
+  <div id="settingsMsg"></div>
+</section>
+
+<!-- ═══ 第 1 页：准备（结构 → 上传 → 列表）═══ -->
+<div id="page1">
+  <!-- ① 问卷结构 -->
+  <section id="structureSection">
+    <h2><span class="step">①</span>问卷结构 <small>.qes + 示例问卷（照片/PDF/Word）→ survey.json</small></h2>
+    <div class="set-row">
+      <label>粘贴 .qes 文本 或 <input type="file" id="qesFileInput" accept=".qes,.txt"></label>
+    </div>
+    <textarea id="qesText" rows="5" style="width:100%" placeholder="把 .qes 内容粘贴到这里（变量名+字段类型+题目文本）"></textarea>
+    <div class="set-row">
+      <label>示例问卷（照片/PDF/Word，一份完整问卷按页序一起选）
+        <input type="file" id="samplePhotosInput" multiple accept="image/*,.pdf,.docx">
+      </label>
+      <label>每份问卷页数 <input id="pagesPerFormGen" type="number" min="1" max="20" size="3" placeholder="选照片后自动填"></label>
+      <button id="generateSurveyBtn" class="primary">生成 survey.json</button>
+      <button id="previewSurveyBtn" class="ghost">预览问卷结构</button>
+      <button id="resetDataBtn" class="ghost">清空数据（开始新一批时用）</button>
+    </div>
+    <div id="generateMsg"></div>
+    <details id="surveyPreviewBox" style="display:none; margin-top:8px">
+      <summary>问卷结构预览（变量名 / 题目 / 类型 / 选项编码）</summary>
+      <div id="surveyPreviewBody" style="max-height:420px; overflow:auto; border:1px solid var(--line); border-radius:8px"></div>
+    </details>
+    <details id="checklistBox" style="display:none; margin-top:8px">
+      <summary>人工校验清单（生成后必须核对）</summary>
+      <pre id="checklistPre"></pre>
+    </details>
+  </section>
+
+  <!-- ② 上传与识别 -->
+  <section id="uploadSection">
+    <h2><span class="step">②</span>上传照片与识别 <small>照片/PDF/Word 均可；所有患者可整合在一个 PDF 里，按"每份页数"自动切分</small></h2>
+    <div class="set-row">
+      <input type="file" id="fileInput" multiple accept="image/*,.pdf,.docx">
+      <button id="recognizeAllBtn" class="primary">③ 识别所有未识别问卷</button>
+    </div>
+    <div id="uploadPreview" style="display:none; margin-top:10px"></div>
+    <div id="uploadProgress"></div>
+  </section>
+
+  <!-- ④ 列表 -->
+  <section id="listSection">
+    <h2><span class="step">④</span>问卷列表 <small>点"审核"进入左图右表单的审核页</small></h2>
+    <table id="listTable">
+      <thead><tr><th>问卷</th><th>状态</th><th>低置信字段</th><th>操作</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+</div>
+
+<!-- ═══ 第 2 页：审核与导出 ═══ -->
+<div id="page2" style="display:none">
+  <section id="reviewSection">
+    <div class="review-bar">
+      <button id="backBtn" class="ghost">← 返回列表</button>
+      <span id="posLabel"></span>
+      <span id="dupWarn" style="display:none" class="dup-badge">⚠️ 此编号与其他问卷重复</span>
+      <button id="prevBtn">← 上一份</button>
+      <button id="nextBtn">下一份 →</button>
+      <label>审核人 <input id="reviewerInput" size="8"></label>
+      <label>标红阈值 <input id="thresholdInput" type="number" step="0.05" min="0" max="1" size="4"></label>
+      <label><input type="checkbox" id="showVarNames"> 标题显示变量名</label>
+      <button id="saveBtn">保存修改</button>
+      <button id="confirmBtn" class="primary">✓ 标记已确认</button>
+    </div>
+    <div class="review-layout" id="reviewLayout">
+      <div class="img-pane" id="imgPane">
+        <div class="img-tools">
+          <button id="pagePrev">◁</button><span id="pageLabel"></span><button id="pageNext">▷</button>
+          <button id="zoomOut">−</button><button id="zoomIn">＋</button><span id="zoomLabel"></span>
+        </div>
+        <div class="img-scroll"><img id="paperImg" alt="问卷原图"></div>
+      </div>
+      <div class="splitter" id="splitter" title="拖动调整左右宽度"></div>
+      <div class="form-pane">
+        <div id="surveyContainer"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ⑤ 导出与合并 -->
+  <section id="exportSection">
+    <h2><span class="step">⑤</span>导出与合并</h2>
+    <div class="export-row">
+      <label>批次号 <input id="batchInput" placeholder="batch01" size="8"></label>
+      <label>审核人 <input id="exportReviewer" placeholder="张三" size="8"></label>
+      <label><input type="checkbox" id="confirmedOnly" checked> 仅导出已确认</label>
+      <button id="exportBtn" class="primary">导出 CSV</button>
+      <input type="file" id="mergeInput" multiple accept=".csv">
+      <button id="mergeBtn">合并为总 CSV</button>
+      <span class="hint">批次/审核人写在文件名里；合并要求各文件表头完全一致，不一致会拒绝。</span>
+    </div>
+    <div id="exportMsg"></div>
+  </section>
+</div>
+
+<script src="/vendor/survey-core/survey.core.min.js"></script>
+<script src="/vendor/survey-js-ui/survey-js-ui.min.js"></script>
+<script src="/vendor/pdfjs/pdf.min.js"></script>
+<script src="/vendor/mammoth/mammoth.browser.min.js"></script>
+<script src="/vendor/html2canvas/html2canvas.min.js"></script>
+<script src="/app.js"></script>
+<div id="toast"></div>
+</body>
+</html>

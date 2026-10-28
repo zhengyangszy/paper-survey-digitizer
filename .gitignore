@@ -1,0 +1,20 @@
+# 依赖与构建产物
+node_modules/
+dist/
+dist/build/
+
+# 密钥：只提交 .env.example 模板，真密钥永不上传
+.env
+data/settings.json
+
+# 用户数据（患者照片、识别/审核记录、导出留档）——每位使用者本地自己的数据
+data/profiles/
+data/images/
+data/responses/
+data/exports/
+data/sample/
+
+# 系统杂项
+Thumbs.db
+.DS_Store
+*.log

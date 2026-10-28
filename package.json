@@ -1,0 +1,24 @@
+{
+  "name": "paper-survey-digitizer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "纸质问卷批量数字化：AI 识别 → 网页人工审核 → 导出 CSV → 导入 EpiData",
+  "scripts": {
+    "start": "node src/server.js",
+    "qes": "node scripts/qes-to-survey.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ai-form-response-extractor": "^0.2.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "html2canvas": "^1.4.1",
+    "mammoth": "^1.13.0",
+    "openai": "^6.0.0",
+    "pdfjs-dist": "^3.11.174",
+    "survey-core": "^1.12.0",
+    "survey-js-ui": "^1.12.0"
+  }
+}
