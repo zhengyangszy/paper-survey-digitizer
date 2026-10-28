@@ -1,5 +1,7 @@
 # 纸质问卷批量数字化工具
 
+**中文** | [English](README.en.md)
+
 AI 识别 → 网页人工审核 → 导出 CSV → 导入 EpiData。单机运行，零费用，无需云服务。
 
 ## 最快上手
@@ -21,33 +23,34 @@ npm start
 ## 目录结构
 
 ```
-├── survey.json            问卷结构（由 .qes 生成；name=EpiData 变量名=CSV 列名，全程只定义一次）
-├── 启动问卷工具.bat        双击启动（自动开浏览器；桌面快捷方式指向它）
+├── 启动问卷工具.bat         双击启动（自动开浏览器；桌面快捷方式指向它）
 ├── scripts/
-│   ├── make-portable.ps1  打便携分发包（dist\*.zip）
-│   ├── qes-to-survey.js   EpiData .qes → survey.json + 人工校验清单（命令行版）
-│   ├── merge-csv.js       离线合并各人的批次 CSV（不启动网页也能用）
-│   └── test-vision.js     探测某模型能否看图（换模型前先跑一下）
+│   ├── make-portable.ps1   打便携分发包（dist\*.zip）
+│   ├── qes-to-survey.js    EpiData .qes → survey.json + 人工校验清单（命令行版）
+│   ├── merge-csv.js        离线合并各人的批次 CSV（不启动网页也能用）
+│   ├── audit-csv.js        导出 CSV 的快速审计（行数/空值统计）
+│   └── test-vision.js      探测某模型能否看图（换模型前先跑一下）
 ├── src/
-│   ├── server.js          Web 服务（Express）：结构生成/上传/识别/审核/导出/合并 API
-│   ├── provider.js        模型调用封装（OpenAI 兼容端点，可整体替换）
-│   ├── recognize.js       识别流水线：页图片 + survey.json → 答案 + 每字段置信度
-│   ├── calibrate.js       示例问卷 → 模型校对（题序/aiHint/页数）
-│   ├── qes-parser.js      .qes 确定性解析（网页与命令行共用）
-│   ├── store.js           本地 JSON 存储（无需数据库）
-│   └── csv.js             CSV 导出/合并（列名锁死为 survey.json 的变量名顺序）
-├── public/                网页界面（准备页 + 审核导出页，SurveyJS 渲染表单）
+│   ├── server.js           Web 服务（Express）：结构生成/上传/识别/审核/导出/合并 API
+│   ├── provider.js         模型调用封装（OpenAI 兼容端点，可整体替换）
+│   ├── recognize.js        识别流水线：页图片 + survey.json → 答案 + 每字段置信度
+│   ├── calibrate.js        示例问卷 → 模型校对（题序/aiHint/页数）
+│   ├── qes-parser.js       .qes 确定性解析（网页与命令行共用）
+│   ├── adapter.js          识别结果的宽松校验（数字/编码自动纠正类型）
+│   ├── pool.js             并发池（份级/块级并发）
+│   ├── store.js            本地 JSON 存储（无需数据库）
+│   └── csv.js              CSV 导出/合并（列名锁死为 survey.json 的变量名顺序）
+├── public/                 网页界面（准备页 + 审核导出页，SurveyJS 渲染表单）
 ├── data/
-│   ├── qes/               放你的 .qes 文件
-│   ├── sample/            示例问卷（试跑用，正式开录可删）
-│   ├── images/            上传的问卷图片
-│   ├── responses/         每份问卷的状态（识别结果、置信度、审核状态）
-│   ├── exports/           导出的批次 CSV 与合并结果（自动留档）
-│   └── survey-checklist.md  人工校验清单（生成 survey.json 时自动产出）
-├── dist/                  便携分发包（make-portable.ps1 产出）
+│   ├── profiles/           问卷档案：每种问卷一个目录，互不干扰
+│   │   └── <档案名>/       survey.json（结构）+ images/ + responses/ + exports/
+│   │                       + survey-checklist.md + profile.json（每份页数/编号变量）
+│   ├── qes/                放你的 .qes 文件
+│   └── settings.json       全局设置（API 密钥/厂商/并发数；密钥不外传）
+├── dist/                   便携分发包（make-portable.ps1 产出）
 └── docs/
-    ├── 分工与合并说明.md   给组员的操作手册
-    ├── screenshot-page1.png / page2.png  界面截图
+    ├── 分工与合并说明.md    给组员的操作手册（[English](docs/member-guide.en.md)）
+    └── screenshot-page1.png / page2.png  界面截图
 ```
 
 ## 数据流（全程一条线）
@@ -112,7 +115,7 @@ npm start
 pwsh -File scripts\make-portable.ps1
 ```
 
-产出 `dist\问卷数字化工具-便携版-<日期>.zip`（约 43 MB），内含绿色版 node.exe
+产出 `dist\问卷数字化工具-便携版-<日期>.zip`（约 55 MB），内含绿色版 node.exe
 （MIT 许可可自由分发）+ 全部依赖 + 当前 survey.json + 启动 bat。
 组员**解压 → 双击「启动问卷工具.bat」→ 浏览器自动打开**，无需安装任何东西。
 
